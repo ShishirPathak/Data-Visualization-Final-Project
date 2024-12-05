@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Olympic Athlete Participation</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: transparent;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        .chart {
+            max-width: 960px;
+            margin: 20px auto;
+            background: transparent;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: opacity 0.2s ease;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: #ddd;
+        }
+
+        .axis text {
+            font-size: 12px;
+            fill: #555;
+        }
+
+        select {
+            display: block;
+            margin: 20px auto;
+            padding: 5px 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Olympic Athlete Participation (1992–2022)</h1>
+    <select id="seasonFilter">
+        <option value="All">All Seasons</option>
+        <option value="Summer">Summer</option>
+        <option value="Winter">Winter</option>
+    </select>
+    <div class="chart">
+        <svg id="chart"></svg>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // Chart dimensions
+        const margin = { top: 50, right: 150, bottom: 70, left: 60 };
+        const width = 900 - margin.left - margin.right;
+        const height = 500 - margin.top - margin.bottom;
+
+        // Create SVG container
+        const svg = d3.select("#chart")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Tooltip setup
+        const tooltip = d3.select("#tooltip");
+
+        // Load data from the CSV file
+        d3.csv("data/olympic_athletes_test.csv").then(data => {
+            // Parse the data
+            data.forEach(d => {
+                d["Athletes Participating"] = +d["Athletes Participating"].replace(",", "");
+            });
+
+            // Group data by year and season
+            const nestedData = d3.group(data, d => d["Olympic Year"]);
+            const years = Array.from(nestedData.keys());
+            const seasons = ["Summer", "Winter"];
+
+            // Scales
+            const x0 = d3.scaleBand()
+                .domain(years)
+                .range([0, width])
+                .padding(0.2);
+
+            const x1 = d3.scaleBand()
+                .domain(seasons)
+                .range([0, x0.bandwidth()])
+                .padding(0.1);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d["Athletes Participating"])])
+                .nice()
+                .range([height, 0]);
+
+            const color = d3.scaleOrdinal()
+                .domain(seasons)
+                .range(["#4caf50", "#2196f3"]);
+
+            // Axes
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x0))
+                .selectAll("text")
+                .attr("transform", "rotate(-45)")
+                .style("text-anchor", "end");
+
+            svg.append("g")
+                .call(d3.axisLeft(y));
+
+            // Legend
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width + 20}, 50)`);
+
+            seasons.forEach((season, i) => {
+                const legendRow = legend.append("g")
+                    .attr("transform", `translate(0,${i * 20})`)
+                    .attr("class", "legend-row")
+                    .on("mouseover", () => {
+                        svg.selectAll(`.bar.${season}`)
+                            .attr("fill", "orange");
+                    })
+                    .on("mouseout", () => {
+                        svg.selectAll(`.bar.${season}`)
+                            .attr("fill", color(season));
+                    });
+
+                legendRow.append("rect")
+                    .attr("width", 10)
+                    .attr("height", 10)
+                    .attr("fill", color(season));
+
+                legendRow.append("text")
+                    .attr("x", 20)
+                    .attr("y", 10)
+                    .attr("text-anchor", "start")
+                    .text(season)
+                    .attr("font-size", "12px")
+                    .attr("fill", "#333");
+            });
+
+            // Bars
+            function updateBars(filterSeason) {
+                const filteredData = filterSeason === "All"
+                    ? data
+                    : data.filter(d => d["Season"] === filterSeason);
+
+                const updatedYears = Array.from(d3.group(filteredData, d => d["Olympic Year"]).keys());
+
+                x0.domain(updatedYears);
+                svg.select(".x-axis")
+                    .call(d3.axisBottom(x0));
+
+                const bars = svg.selectAll(".bar-group")
+                    .data(updatedYears, d => d);
+
+                bars.exit().remove();
+
+                const barsEnter = bars.enter()
+                    .append("g")
+                    .attr("class", "bar-group")
+                    .attr("transform", d => `translate(${x0(d)},0)`);
+
+                const rects = barsEnter.merge(bars)
+                    .selectAll("rect")
+                    .data(d => {
+                        return seasons.map(season => {
+                            const yearData = nestedData.get(d)?.find(s => s.Season === season);
+                            const athletes = yearData ? yearData["Athletes Participating"] : 0;
+                            const city = yearData ? yearData["City"] : "";
+                            return { season, athletes, city };
+                        });
+                    });
+
+                rects.enter()
+                    .append("rect")
+                    .merge(rects)
+                    .attr("class", d => `bar ${d.season}`)
+                    .attr("x", d => x1(d.season))
+                    .attr("y", d => y(d.athletes))
+                    .attr("width", x1.bandwidth())
+                    .attr("height", d => height - y(d.athletes))
+                    .attr("fill", d => color(d.season))
+                    .on("mouseover", (event, d) => {
+                        tooltip.style("opacity", 1)
+                            .html(`<strong>${d.season}:</strong> ${d.athletes.toLocaleString()} athletes<br><strong>City:</strong> ${d.city}`)
+                            .style("left", `${event.pageX + 10}px`)
+                            .style("top", `${event.pageY - 30}px`);
+                    })
+                    .on("mousemove", event => {
+                        tooltip.style("left", `${event.pageX + 10}px`)
+                            .style("top", `${event.pageY - 30}px`);
+                    })
+                    .on("mouseleave", () => {
+                        tooltip.style("opacity", 0);
+                    });
+
+                rects.exit().remove();
+            }
+
+            updateBars("All");
+
+            d3.select("#seasonFilter").on("change", function () {
+                updateBars(this.value);
+            });
+        });
+    </script>
+</body>
+</html>

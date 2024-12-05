@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bar Chart</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      text-align: center;
+    }
+    #filters {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    select {
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
+      cursor: pointer;
+    }
+    select:hover {
+      background-color: #e0e0e0;
+    }
+    svg {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin: 0 auto;
+    }
+    .legend {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 10px;
+      gap: 15px;
+    }
+    .legend div {
+      display: flex;
+      align-items: center;
+    }
+    .legend div span {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Compare Two Countries</h2>
+
+<div id="filters">
+  <div>
+    <label for="country1">Country 1:</label>
+    <select id="country1"></select>
+  </div>
+  <div>
+    <label for="country2">Country 2:</label>
+    <select id="country2"></select>
+  </div>
+  <div>
+    <label for="comparisonYear">Select Year:</label>
+    <select id="comparisonYear"></select>
+  </div>
+</div>
+
+<svg id="bar-chart" width="800" height="500"></svg>
+
+<div class="legend">
+  <div>
+    <span style="background-color: steelblue;"></span> Country 1
+  </div>
+  <div>
+    <span style="background-color: orange;"></span> Country 2
+  </div>
+</div>
+
+<script>
+  const dataPath = "data/Summer_olympic_Medals.csv"; // Path to your CSV file
+  const svg = d3.select("#bar-chart");
+
+  d3.csv(dataPath).then(data => {
+    data.forEach(d => {
+      d.Year = +d.Year;
+      d.Gold = +d.Gold;
+      d.Silver = +d.Silver;
+      d.Bronze = +d.Bronze;
+    });
+
+    // Calculate top 10 countries by total medals across all years
+    const countryTotals = d3.rollup(
+      data,
+      v => d3.sum(v, d => d.Total || d.Gold + d.Silver + d.Bronze),
+      d => d.Country_Name
+    );
+
+    const topCountries = Array.from(countryTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(d => d[0]);
+
+    // Filter data for dropdowns
+    const filteredData = data.filter(d => topCountries.includes(d.Country_Name));
+    const years = [...new Set(filteredData.map(d => d.Year))].sort((a, b) => a - b);
+
+    const yearSelect = d3.select("#comparisonYear");
+    const country1Select = d3.select("#country1");
+    const country2Select = d3.select("#country2");
+
+    // Add default options
+    yearSelect.insert("option", ":first-child").attr("value", "").text("Select Year");
+    country1Select.insert("option", ":first-child").attr("value", "").text("Select Country");
+    country2Select.insert("option", ":first-child").attr("value", "").text("Select Country");
+
+    years.forEach(year => {
+      yearSelect.append("option").attr("value", year).text(year);
+    });
+
+    topCountries.forEach(country => {
+      country1Select.append("option").attr("value", country).text(country);
+      country2Select.append("option").attr("value", country).text(country);
+    });
+
+    // Event handlers
+    country1Select.on("change", updateBarChart);
+    country2Select.on("change", updateBarChart);
+    yearSelect.on("change", updateBarChart);
+
+    function updateBarChart() {
+      const country1 = country1Select.node().value;
+      const country2 = country2Select.node().value;
+      const year = yearSelect.node().value;
+      renderBarChart(country1, country2, year);
+    }
+
+    function renderBarChart(country1, country2, year) {
+      if (!country1 || !country2 || !year) {
+        svg.selectAll("*").remove();
+        return; // Do nothing if any dropdown is unselected
+      }
+
+      const yearFilteredData =
+        year === "All"
+          ? filteredData
+          : filteredData.filter(d => d.Year == year);
+
+      const country1Data =
+        yearFilteredData.filter(d => d.Country_Name === country1)[0] || {
+          Gold: 0,
+          Silver: 0,
+          Bronze: 0,
+        };
+
+      const country2Data =
+        yearFilteredData.filter(d => d.Country_Name === country2)[0] || {
+          Gold: 0,
+          Silver: 0,
+          Bronze: 0,
+        };
+
+      const medalCategories = ["Gold", "Silver", "Bronze"];
+      const medalData = medalCategories.map(category => ({
+        category,
+        country1: country1Data[category] || 0,
+        country2: country2Data[category] || 0,
+      }));
+
+      // Extend the Y-axis range
+      const maxMedalCount = d3.max(medalData, d => Math.max(d.country1, d.country2));
+      const yScale = d3.scaleLinear()
+        .domain([0, maxMedalCount + 5]) // Add 5 to extend the Y-axis
+        .range([svg.attr("height") - 50, 50]);
+
+      const xScale = d3.scaleBand()
+        .domain(medalCategories)
+        .range([50, svg.attr("width") - 50])
+        .padding(0.2);
+
+      svg.selectAll("*").remove();
+
+      // Add X-axis
+      svg.append("g")
+        .attr("transform", `translate(0,${svg.attr("height") - 50})`)
+        .call(d3.axisBottom(xScale));
+
+      // Add Y-axis
+      svg.append("g")
+        .attr("transform", "translate(50,0)")
+        .call(d3.axisLeft(yScale));
+
+      // Add grouped bars
+      const bars = svg.selectAll(".bar-group")
+        .data(medalData)
+        .enter()
+        .append("g")
+        .attr("transform", d => `translate(${xScale(d.category)},0)`);
+
+      // Country 1 bars
+      bars.append("rect")
+        .attr("class", "bar-country1")
+        .attr("x", -15) // Adjusted for alignment
+        .attr("width", 30)
+        .attr("y", d => yScale(d.country1))
+        .attr("height", d => svg.attr("height") - 50 - yScale(d.country1))
+        .attr("fill", "steelblue");
+
+      // Country 2 bars
+      bars.append("rect")
+        .attr("class", "bar-country2")
+        .attr("x", 15) // Adjusted for alignment
+        .attr("width", 30)
+        .attr("y", d => yScale(d.country2))
+        .attr("height", d => svg.attr("height") - 50 - yScale(d.country2))
+        .attr("fill", "orange");
+
+      // Add labels above bars
+      bars.append("text")
+        .attr("class", "label-country1")
+        .attr("x", -15 + 15) // Centered above Country 1 bar
+        .attr("y", d => yScale(d.country1) - 5)
+        .attr("text-anchor", "middle")
+        .text(d => d.country1);
+
+      bars.append("text")
+        .attr("class", "label-country2")
+        .attr("x", 15 + 15) // Centered above Country 2 bar
+        .attr("y", d => yScale(d.country2) - 5)
+        .attr("text-anchor", "middle")
+        .text(d => d.country2);
+    }
+  });
+</script>
+
+</body>
+</html>

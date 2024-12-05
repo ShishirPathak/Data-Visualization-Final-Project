@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Olympic Athlete Participation Timeline</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 70px;
+        background-color: transparent;
+      }
+      .timeline-container {
+        margin: 0 auto;
+        width: 80%;
+      }
+      svg {
+        width: 100%;
+        height: 400px;
+        border: 1px solid #ccc;
+        background-color: transparent;
+      }
+      .line-summer {
+        fill: none;
+        stroke: #ff7f50; /* Coral for Summer */
+        stroke-width: 2px;
+      }
+      .line-winter {
+        fill: none;
+        stroke: #1f78b4; /* Blue for Winter */
+        stroke-width: 2px;
+      }
+      .circle-summer {
+        fill: #ff7f50;
+        stroke: #333;
+        stroke-width: 1px;
+        cursor: pointer;
+      }
+      .circle-summer:hover {
+        fill: #ff4500; /* Darker Coral on hover */
+      }
+      .circle-winter {
+        fill: #1f78b4;
+        stroke: #333;
+        stroke-width: 1px;
+        cursor: pointer;
+      }
+      .circle-winter:hover {
+        fill: #104e8b; /* Darker Blue on hover */
+      }
+      .tooltip {
+        position: absolute;
+        background: white;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 14px;
+        pointer-events: none;
+        visibility: hidden;
+      }
+      .axis-label {
+        font-size: 14px;
+        font-weight: bold;
+        text-anchor: middle;
+      }
+      h2 {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .legend {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin-top: 10px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="timeline-container">
+      <h2>Olympic Journey: Athlete Participation Over the Years</h2>
+      <svg id="timeline"></svg>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color" style="background-color: #ff7f50"></div>
+          <span>Summer</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background-color: #1f78b4"></div>
+          <span>Winter</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+      const csvPath = "data/olympic_athletes_test.csv"; // Path to your CSV file
+
+      const width = 800;
+      const height = 400;
+
+      const margin = { top: 20, right: 30, bottom: 50, left: 70 };
+
+      const tooltip = d3.select("#tooltip");
+
+      // Load CSV data
+      d3.csv(csvPath).then((data) => {
+        data.forEach((d) => {
+          d["Olympic Year"] = +d["Olympic Year"];
+          d["Athletes Participating"] = +d["Athletes Participating"].replace(
+            /,/g,
+            ""
+          );
+        });
+
+        // Separate data for Summer and Winter
+        const summerData = data.filter((d) => d.Season === "Summer");
+        const winterData = data.filter((d) => d.Season === "Winter");
+
+        // Combine data into one object for the multi-series chart
+        const combinedData = [
+          { season: "Summer", values: summerData },
+          { season: "Winter", values: winterData },
+        ];
+
+        // Scales
+        const xScale = d3
+          .scaleLinear()
+          .domain([
+            d3.min(data, (d) => d["Olympic Year"]) - 2, // Add padding
+            d3.max(data, (d) => d["Olympic Year"]) + 2,
+          ])
+          .range([margin.left, width - margin.right]);
+
+        const yScale = d3
+          .scaleLinear()
+          .domain([0, d3.max(data, (d) => d["Athletes Participating"]) + 1000])
+          .range([height - margin.bottom, margin.top]);
+
+        // Line generator
+        const line = d3
+          .line()
+          .x((d) => xScale(d["Olympic Year"]))
+          .y((d) => yScale(d["Athletes Participating"]));
+
+        const svg = d3
+          .select("#timeline")
+          .attr("width", width)
+          .attr("height", height);
+
+        // X-axis
+        svg
+          .append("g")
+          .attr("transform", `translate(0, ${height - margin.bottom})`)
+          .call(
+            d3
+              .axisBottom(xScale)
+              .tickFormat(d3.format("d")) // Format as an integer year
+              .ticks(
+                (d3.max(data, (d) => d["Olympic Year"]) -
+                  d3.min(data, (d) => d["Olympic Year"])) /
+                  2
+              ) // Generate a tick every 2 years
+          );
+
+        // Add X-axis label
+        svg
+          .append("text")
+          .attr("class", "axis-label")
+          .attr("x", width / 2)
+          .attr("y", height - 10)
+          .text("Year");
+
+        // Y-axis
+        svg
+          .append("g")
+          .attr("transform", `translate(${margin.left}, 0)`)
+          .call(d3.axisLeft(yScale));
+
+        // Add Y-axis label
+        svg
+          .append("text")
+          .attr("class", "axis-label")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -height / 2)
+          .attr("y", 20)
+          .text("Athlete Count");
+
+        // Add lines for each season
+        combinedData.forEach((seasonData) => {
+          svg
+            .append("path")
+            .datum(seasonData.values)
+            .attr(
+              "class",
+              seasonData.season === "Summer" ? "line-summer" : "line-winter"
+            )
+            .attr("d", line);
+        });
+
+        // Add circles and labels for each season
+        combinedData.forEach((seasonData) => {
+          const circleClass =
+            seasonData.season === "Summer" ? "circle-summer" : "circle-winter";
+
+          svg
+            .selectAll(`.${circleClass}`)
+            .data(seasonData.values)
+            .enter()
+            .append("circle")
+            .attr("class", circleClass)
+            .attr("cx", (d) => xScale(d["Olympic Year"]))
+            .attr("cy", (d) => yScale(d["Athletes Participating"]))
+            .attr("r", 6)
+            .on("mouseover", (event, d) => {
+              tooltip
+                .style("visibility", "visible")
+                .html(
+                  `
+              <strong>${d["Olympic Year"]}</strong><br>
+              Season: ${seasonData.season}<br>
+              City: ${d.City}<br>
+              Athletes: ${d["Athletes Participating"]}
+            `
+                )
+                .style("left", event.pageX + 10 + "px")
+                .style("top", event.pageY - 20 + "px");
+            })
+            .on("mousemove", (event) => {
+              tooltip
+                .style("left", event.pageX + 10 + "px")
+                .style("top", event.pageY - 20 + "px");
+            })
+            .on("mouseout", () => {
+              tooltip.style("visibility", "hidden");
+            });
+        });
+      });
+    </script>
+  </body>
+</html>

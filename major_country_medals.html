@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Olympic Medal Trends by Country</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background-color: #f4f4f4;
+      }
+      .chart {
+        display: inline-block;
+        width: 95%;
+        max-width: 1000px;
+        height: 600px;
+        margin-top: 30px;
+      }
+      .line {
+        fill: none;
+        stroke-width: 2;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .highlighted {
+        stroke-width: 6;
+        opacity: 1;
+      }
+      .axis-label {
+        font-size: 14px;
+      }
+      /* .tooltip {
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        border-radius: 5px;
+        padding: 5px 10px;
+        position: absolute;
+        display: none;
+        pointer-events: none;
+        font-size: 12px;
+      } */
+      .tooltip {
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        border-radius: 5px;
+        padding: 5px 10px;
+        position: absolute;
+        display: none;
+        pointer-events: auto; /* Allow interaction with the tooltip */
+        font-size: 12px;
+        max-height: 150px; /* Set a fixed height for the tooltip */
+        overflow-y: auto; /* Enable vertical scrolling */
+        z-index: 10; /* Ensure the tooltip appears on top */
+      }
+
+      .legend {
+        cursor: pointer;
+      }
+      .grid line {
+        stroke: #ccc;
+        stroke-dasharray: 2;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Top 5 Major Countries - Olympic Medal Trends</h1>
+    <div class="chart"></div>
+
+    <script>
+      const margin = { top: 10, right: 150, bottom: 50, left: 60 },
+        width = 900 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+      const svg = d3
+        .select(".chart")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      const parseYear = (d) => {
+        const match = d.slug_game.match(/\d+/);
+        return match ? +match[0] : null;
+      };
+      const countryColors = d3.scaleOrdinal(d3.schemeCategory10);
+
+      d3.csv("data/olympic_medals.csv").then((data) => {
+        data = data
+          .filter(
+            (d) =>
+              parseYear(d) &&
+              d.country_name &&
+              d.country_name !== "Soviet Union"
+          )
+          .map((d) => {
+            if (d.country_name === "People's Republic of China") {
+              return { ...d, country_name: "China" };
+            } else if (d.country_name === "United States of America") {
+              return { ...d, country_name: "USA" };
+            }
+            return d;
+          });
+        const totalMedalsByCountry = d3.rollup(
+          data,
+          (v) => v.length,
+          (d) => d.country_name
+        );
+        const topCountries = Array.from(totalMedalsByCountry.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map((d) => d[0]);
+        const filteredData = data.filter((d) =>
+          topCountries.includes(d.country_name)
+        );
+        const nestedData = d3.rollup(
+          filteredData,
+          (v) => v.length,
+          (d) => d.country_name,
+          (d) => parseYear(d)
+        );
+        const years = Array.from(new Set(data.map((d) => parseYear(d)))).sort(
+          (a, b) => a - b
+        );
+        const medalCounts = topCountries.map((country) => ({
+          country: country,
+          values: years.map((year) => ({
+            year: year,
+            count:
+              (nestedData.get(country) && nestedData.get(country).get(year)) ||
+              0,
+          })),
+        }));
+
+        const x = d3
+          .scaleLinear()
+          .domain([d3.min(years), d3.max(years)])
+          .range([0, width]);
+        const y = d3
+          .scaleLinear()
+          .domain([
+            0,
+            d3.max(medalCounts, (d) => d3.max(d.values, (v) => v.count)),
+          ])
+          .nice()
+          .range([height, 0]);
+
+        const line = d3
+          .line()
+          .x((d) => x(d.year))
+          .y((d) => y(d.count))
+          .curve(d3.curveMonotoneX);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x).tickFormat(d3.format("d")))
+          .append("text")
+          .attr("x", width / 2)
+          .attr("y", 40)
+          .attr("fill", "#000")
+          .style("text-anchor", "middle")
+          .text("Year")
+          .attr("class", "axis-label");
+
+        svg
+          .append("g")
+          .call(d3.axisLeft(y))
+          .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("x", -height / 2)
+          .attr("y", -50)
+          .attr("fill", "#000")
+          .style("text-anchor", "middle")
+          .text("Medal Count")
+          .attr("class", "axis-label");
+
+        svg
+          .append("g")
+          .attr("class", "grid")
+          .call(d3.axisLeft(y).tickSize(-width).tickFormat(""))
+          .style("stroke-dasharray", "2,2");
+
+        const tooltip = d3
+          .select("body")
+          .append("div")
+          .attr("class", "tooltip");
+
+        const countryLines = svg
+          .selectAll(".line-group")
+          .data(medalCounts)
+          .enter()
+          .append("g")
+          .attr("class", "line-group");
+
+        countryLines
+          .append("path")
+          .attr("class", "line")
+          .attr("d", (d) => line(d.values))
+          .style("stroke", (d) => countryColors(d.country))
+          .style("opacity", 0.8)
+          .on("click", function (event, d) {
+            svg.selectAll(".line").classed("highlighted", false);
+            d3.select(this).classed("highlighted", true).raise(); // Bring to front
+
+            const details = d.values
+              .slice()
+              .reverse() // Reverse the order for recent to past
+              .map((v) => `Year: ${v.year}, Medals: ${v.count}`)
+              .join("<br>");
+            tooltip
+              .style("display", "block")
+              .html(`<strong>${d.country}</strong><br>${details}`)
+              .style("left", event.pageX + 15 + "px")
+              .style("top", event.pageY - 30 + "px");
+          });
+
+        d3.select("body").on("click", function (event) {
+          if (
+            !event.target.closest(".line") &&
+            !event.target.closest(".tooltip")
+          ) {
+            tooltip.style("display", "none");
+            svg.selectAll(".line").classed("highlighted", false);
+          }
+        });
+
+        const legend = svg
+          .selectAll(".legend")
+          .data(topCountries)
+          .enter()
+          .append("g")
+          .attr("class", "legend")
+          .attr("transform", (d, i) => `translate(${width + 20},${i * 20})`);
+
+        legend
+          .append("rect")
+          .attr("x", 0)
+          .attr("width", 10)
+          .attr("height", 10)
+          .style("fill", (d) => countryColors(d));
+
+        legend
+          .append("text")
+          .attr("x", 20)
+          .attr("y", 9)
+          .text((d) => d);
+      });
+    </script>
+  </body>
+</html>

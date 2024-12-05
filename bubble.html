@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Top Countries by Medal Count</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: transparent;
+        text-align: center;
+      }
+      #controls {
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: center; /* Center the menu */
+        gap: 15px;
+        align-items: center;
+      }
+      select,
+      button {
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background-color: white;
+        cursor: pointer;
+      }
+      select:hover,
+      button:hover {
+        background-color: #e0e0e0;
+      }
+      #chart {
+        display: flex;
+        justify-content: center; /* Center the bubble graph */
+        margin-top: 20px;
+      }
+      svg {
+        background-color: transparent;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+      }
+      .bubble {
+        opacity: 0.8;
+        cursor: pointer;
+      }
+      .bubble:hover {
+        opacity: 1;
+        stroke: black;
+        stroke-width: 2px;
+      }
+      .tooltip {
+        position: absolute;
+        background: white;
+        border: 1px solid #ccc;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        pointer-events: none;
+        visibility: hidden;
+      }
+      .popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        border: 2px solid #ccc;
+        padding: 20px;
+        border-radius: 10px;
+        z-index: 1000;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      .popup h2 {
+        margin: 0 0 10px;
+      }
+      .popup p {
+        margin: 5px 0;
+      }
+      .popup button {
+        padding: 8px 12px;
+        background-color: #f44336;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .popup button:hover {
+        background-color: #d32f2f;
+      }
+      #overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h2 style="text-align: center; margin-bottom: 20px; font-size: 24px">
+        Top Countries by Olympic Medal Count
+      </h2>
+    </div>
+    <div id="controls">
+      <div>
+        <label for="yearSelect">Select Year:</label>
+        <select id="yearSelect">
+          <option value="All">All Years</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="chart">
+      <svg width="800" height="600"></svg>
+    </div>
+
+    <div class="tooltip"></div>
+    <div id="overlay"></div>
+    <div id="popup" class="popup" style="display: none">
+      <h2 id="popup-title"></h2>
+      <p id="popup-gold"></p>
+      <p id="popup-silver"></p>
+      <p id="popup-bronze"></p>
+      <button id="close-popup">Close</button>
+    </div>
+
+    <script>
+      const dataPath = "data/Summer_olympic_Medals.csv"; // Path to your CSV file
+      const width = 800;
+      const height = 600;
+
+      const svg = d3.select("svg");
+      const tooltip = d3.select(".tooltip");
+      const popup = d3.select("#popup");
+      const overlay = d3.select("#overlay");
+
+      // Load the data
+      d3.csv(dataPath).then((data) => {
+        data.forEach((d) => {
+          d.Year = +d.Year;
+          d.Gold = +d.Gold;
+          d.Silver = +d.Silver;
+          d.Bronze = +d.Bronze;
+          d.Total = d.Gold + d.Silver + d.Bronze;
+        });
+
+        const years = [...new Set(data.map((d) => d.Year))].sort(
+          (a, b) => a - b
+        );
+        const yearSelect = d3.select("#yearSelect");
+        years.forEach((year) => {
+          yearSelect.append("option").attr("value", year).text(year);
+        });
+
+        renderBubbles("All");
+
+        yearSelect.on("change", function () {
+          const selectedYear = this.value;
+          renderBubbles(selectedYear);
+        });
+
+        function renderBubbles(year) {
+          const filteredData =
+            year === "All" ? data : data.filter((d) => d.Year == year);
+          const groupedData = d3.group(filteredData, (d) => d.Country_Name);
+
+          const processedData = Array.from(
+            groupedData,
+            ([country, values]) => ({
+              Country: country,
+              Total: d3.sum(values, (d) => d.Total),
+              Gold: d3.sum(values, (d) => d.Gold),
+              Silver: d3.sum(values, (d) => d.Silver),
+              Bronze: d3.sum(values, (d) => d.Bronze),
+            })
+          ).sort((a, b) => b.Total - a.Total);
+
+          const maxTotal = d3.max(processedData, (d) => d.Total);
+          const radiusScale = d3
+            .scaleSqrt()
+            .domain([0, maxTotal])
+            .range([5, 50]);
+
+          const simulation = d3
+            .forceSimulation(processedData)
+            .force("x", d3.forceX(width / 2).strength(0.1))
+            .force("y", d3.forceY(height / 2).strength(0.1))
+            .force(
+              "collide",
+              d3.forceCollide((d) => radiusScale(d.Total) + 2)
+            );
+
+          const bubbles = svg
+            .selectAll(".bubble")
+            .data(processedData, (d) => d.Country);
+
+          bubbles.exit().remove();
+
+          const enterBubbles = bubbles
+            .enter()
+            .append("circle")
+            .attr("class", "bubble")
+            .attr("r", 0)
+            .attr(
+              "fill",
+              (d) => `rgb(255, ${Math.max(0, 255 - d.Gold * 5)}, 0)`
+            );
+
+          enterBubbles
+            .merge(bubbles)
+            .transition()
+            .duration(800)
+            .attr("r", (d) => radiusScale(d.Total));
+
+          simulation.nodes(processedData).on("tick", () => {
+            enterBubbles
+              .merge(bubbles)
+              .attr("cx", (d) => d.x)
+              .attr("cy", (d) => d.y);
+          });
+
+          enterBubbles
+            .merge(bubbles)
+            .on("mouseover", (event, d) => {
+              tooltip
+                .style("visibility", "visible")
+                .html(`<strong>${d.Country}</strong>`)
+                .style("left", event.pageX + 10 + "px")
+                .style("top", event.pageY - 20 + "px");
+            })
+            .on("mousemove", (event) => {
+              tooltip
+                .style("left", event.pageX + 10 + "px")
+                .style("top", event.pageY - 20 + "px");
+            })
+            .on("mouseout", () => {
+              tooltip.style("visibility", "hidden");
+            })
+            .on("click", (event, d) => {
+              showPopup(d);
+            });
+        }
+
+        function showPopup(data) {
+          d3.select("#popup-title").text(`Medal Details: ${data.Country}`);
+          d3.select("#popup-gold").text(`Gold Medals: ${data.Gold}`);
+          d3.select("#popup-silver").text(`Silver Medals: ${data.Silver}`);
+          d3.select("#popup-bronze").text(`Bronze Medals: ${data.Bronze}`);
+          overlay.style("display", "block");
+          popup.style("display", "block");
+        }
+
+        d3.select("#close-popup").on("click", () => {
+          overlay.style("display", "none");
+          popup.style("display", "none");
+        });
+
+        overlay.on("click", () => {
+          overlay.style("display", "none");
+          popup.style("display", "none");
+        });
+      });
+    </script>
+  </body>
+</html>

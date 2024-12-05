@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Olympic Summer & Winter Games</title>
+    <style>
+      /* General styles */
+      body {
+        font-family: "Arial", sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #007bff, #ff7f50);
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 150vh;
+        overflow-x: hidden;
+      }
+
+      /* Navbar styling */
+      nav {
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: center;
+        padding: 10px 0;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      }
+
+      nav a {
+        color: #fff;
+        text-decoration: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 5px;
+        transition: background-color 0.3s ease-in-out;
+        margin: 0 10px;
+      }
+
+      nav a:hover {
+        background-color: #ff7f50;
+      }
+
+      nav a.active {
+        background-color: #007bff;
+      }
+
+      /* Main title */
+      h1 {
+        font-size: 3rem;
+        font-weight: bold;
+        text-align: center;
+        margin: 30px 0 20px;
+        color: #ffffff;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Home section */
+      #home {
+        text-align: center;
+        margin: 20px auto;
+        max-width: 900px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      }
+
+      #home h2 {
+        color: #007bff;
+        margin-bottom: 10px;
+      }
+
+      /* Group details */
+      .group-details {
+        position: fixed;
+        bottom: 60px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        max-width: 250px;
+        display: none; /* Initially hidden */
+        margin-bottom: 50px;
+      }
+
+      .group-details h3 {
+        color: #ff7f50;
+        text-align: center;
+        margin-bottom: 10px;
+      }
+
+      .group-details p {
+        margin: 5px 0;
+      }
+
+      /* Toggle button */
+      .toggle-group {
+        position: fixed;
+        bottom: 60px;
+        left: 10px;
+        background: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        cursor: pointer;
+        font-size: 14px;
+        z-index: 1001;
+      }
+
+      .toggle-group:hover {
+        background: #0056b3;
+      }
+
+      /* Frame styling */
+      iframe {
+        margin-top: 30px;
+        width: 90%;
+        height: 650px;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      footer {
+        margin-top: auto; /* Push the footer to the bottom */
+        width: 100%;
+        text-align: center;
+        font-size: 14px;
+        color: #f1f1f1;
+        background-color: rgba(0, 0, 0, 0.8);
+        padding: 10px 0;
+        position: fixed; /* Stick the footer to the bottom */
+        bottom: 0;
+        left: 0;
+    }
+    </style>
+  </head>
+  <body>
+    <!-- Main title -->
+    <h1>Olympic Summer & Winter Games</h1>
+
+    <!-- Navigation bar -->
+    <nav>
+      <a href="#home" class="nav-link active" id="home-link">Home</a>
+      <a href="bubble.html" class="nav-link" id="medal-link">Top Countries</a>
+      <a href="athlete_participation.html" class="nav-link" id="athlete-link"
+        >Athlete Participation</a
+      >
+      <a href="compare.html" class="nav-link" id="compare-link"
+        >Compare Countries</a
+      >
+      <a href="timeline.html" class="nav-link" id="timeline-link"
+        >Participation Timeline</a
+      >
+    </nav>
+
+    <!-- Home section -->
+    <div id="home">
+      <h2>Welcome to the Olympic Summer & Winter Games Project</h2>
+      <p>
+        The Olympic Games are a global celebration of athleticism,
+        determination, and unity. This project dives deep into the data of both
+        Summer and Winter Olympics, offering insights into trends, country
+        performances, and athlete participation over the years.
+      </p>
+      <div
+        style="
+          display: flex;
+          justify-content: center;
+          gap: 20px;
+          flex-wrap: wrap;
+          margin-top: 20px;
+        "
+      >
+        <div
+          style="
+            max-width: 300px;
+            background: rgba(0, 123, 255, 0.9);
+            color: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+          "
+        >
+          <h3 style="margin-top: 0">Interactive Visualizations</h3>
+          <p>
+            Explore interactive charts and graphs that bring Olympic data to
+            life. Compare countries, view medal counts, and analyze
+            participation trends over decades.
+          </p>
+        </div>
+        <div
+          style="
+            max-width: 300px;
+            background: rgba(255, 127, 80, 0.9);
+            color: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+          "
+        >
+          <h3 style="margin-top: 0">Discover Trends</h3>
+          <p>
+            Uncover patterns in Olympic history, such as the rise of dominant
+            countries, the evolution of sports, and participation growth over
+            the years.
+          </p>
+        </div>
+        <div
+          style="
+            max-width: 300px;
+            background: rgba(0, 200, 150, 0.9);
+            color: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+          "
+        >
+          <h3 style="margin-top: 0">Data-Driven Insights</h3>
+          <p>
+            Powered by data visualization techniques, this project transforms
+            raw Olympic data into meaningful stories that resonate with
+            audiences.
+          </p>
+        </div>
+      </div>
+      <div style="margin-top: 30px">
+        <p>
+          Click on the navigation bar above to start exploring! Whether you're
+          interested in medal trends, athlete participation, or country
+          comparisons, our visualizations are here to guide you through a
+          century of Olympic history.
+        </p>
+      </div>
+    </div>
+
+    <!-- Group details -->
+    <button class="toggle-group" id="toggle-group-btn">
+      Show Group Details
+    </button>
+    <div class="group-details" id="group-details">
+      <h3>Group 16: CIS 568 - Data Visualization</h3>
+      <p>1. Shishir Kumar Pathak: 02122205</p>
+      <p>2. Prerak Panwar: 02081587</p>
+      <p>3. Shail Patel: 02134544</p>
+      <p>4. Vatsal Pandya: 02179292</p>
+    </div>
+
+    <!-- Frame to load content -->
+    <iframe id="content-frame" src=""></iframe>
+
+    <!-- Footer -->
+    <footer>
+      &copy; 2024 Olympic Data Visualizations. All rights reserved.
+    </footer>
+
+    <script>
+      // JavaScript for navigation and iframe updates
+      const links = document.querySelectorAll(".nav-link");
+      const frame = document.getElementById("content-frame");
+      const homeSection = document.getElementById("home");
+
+      // Group details toggle
+      const toggleGroupBtn = document.getElementById("toggle-group-btn");
+      const groupDetails = document.getElementById("group-details");
+
+      toggleGroupBtn.addEventListener("click", () => {
+        if (groupDetails.style.display === "none") {
+          groupDetails.style.display = "block";
+          toggleGroupBtn.textContent = "Hide Group Details";
+        } else {
+          groupDetails.style.display = "none";
+          toggleGroupBtn.textContent = "Show Group Details";
+        }
+      });
+
+      // Navigation functionality
+      links.forEach((link) => {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+
+          // Remove 'active' class from all links
+          links.forEach((l) => l.classList.remove("active"));
+
+          // Add 'active' class to the clicked link
+          link.classList.add("active");
+
+          const href = link.getAttribute("href");
+
+          if (href === "#home") {
+            homeSection.style.display = "block";
+            frame.style.display = "none";
+          } else {
+            homeSection.style.display = "none";
+            frame.style.display = "block";
+            frame.src = href;
+          }
+        });
+      });
+
+      // Default view is Home section
+      homeSection.style.display = "block";
+      frame.style.display = "none";
+    </script>
+  </body>
+</html>
